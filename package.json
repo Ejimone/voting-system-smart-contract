@@ -1,0 +1,26 @@
+{
+  "name": "voting-system-smart-contract",
+  "version": "1.0.0",
+  "description": "A decentralized voting system smart contract on Ethereum where users purchase voting rights and cast votes with a two-vote limit per user",
+  "main": "hardhat.config.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "node": "hardhat node"
+  },
+  "keywords": [
+    "ethereum",
+    "smart-contract",
+    "voting",
+    "blockchain",
+    "hardhat",
+    "solidity"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "hardhat": "^2.25.0"
+  }
+}

@@ -78,6 +78,9 @@ contract Voting{
     }
 
 
+    event hasRightsToVote(address indexed voter, bool hasRights);
+
+
     function registerCandidate(string memory _name, address _candidateAddress, uint256 _balance) public  onlyOwner() {
         require(candidates.length < MAX_CANDIDATES, "Maximum number of canddates reached, sorrry we cant accept more candidates, you can remove a candidate to add a new one");
         require(_candidateAddress != address(0), "Invalid candidate address");
@@ -100,5 +103,91 @@ contract Voting{
 
 
 
-    function buyVotingRight() public payable {}
+    function buyVotingRight(address _voterAddress) public payable {
+        require(msg.sender == _voterAddress, "Only the voter can buy voting rights");
+        require(msg.sender.balance >= 4 ether, "Voter must have at least 4 ETH to buy voting rights");
+        require(!votingOpen, "Voting is already open");
+        require(!hasVoted[_voterAddress], "Voter has already voted");
+        require(votingClosed, "Voting must be closed to buy voting rights");
+        require(msg.value >= 4 ether, "Insufficient funds to buy voting rights");
+
+        // The contract receives the payment, so no need to transfer back to voter
+        voters.push(_voterAddress);
+        hasVoted[_voterAddress] = false;
+        emit hasRightsToVote(_voterAddress, true);
+    }
+
+
+    function startVoting() public onlyOwner votingIsClosed {
+        require(candidates.length > 0, "No candidates registered for voting");
+        votingStartTime = block.timestamp;
+        votingEndTime = votingStartTime + VOTING_DURATION;
+        votingOpen = true;
+        votingClosed = false;
+        emit VotingStarted(votingTitle, votingDescription, votingStartTime, votingEndTime);
+    }
+
+    function endVoting() public onlyOwner votingIsOpen {
+        require(block.timestamp >= votingEndTime, "Voting period has not ended yet");
+        votingOpen = false;
+        votingClosed = true;
+        emit VotingEnded(votingTitle, block.timestamp);
+        declareWinner();
+    }
+
+    function castVote(address payable _candidate) public payable votingIsOpen() {
+        require(_candidate != address(0), "Invalid candidate address");
+        require(!hasVoted[msg.sender], "You have already voted");
+        require(msg.value > 0, "Must send payment to vote");
+        require(block.timestamp < votingEndTime, "Voting period has ended");
+        
+        // Check if voter has voting rights
+        bool hasRights = false;
+        for (uint256 i = 0; i < voters.length; i++) {
+            if (voters[i] == msg.sender) {
+                hasRights = true;
+                break;
+            }
+        }
+        require(hasRights, "You must buy voting rights first");
+
+        // Check if candidate is registered
+        bool candidateExists = false;
+        for (uint256 i = 0; i < candidates.length; i++) {
+            if (candidates[i] == _candidate) {
+                candidateExists = true;
+                break;
+            }
+        }
+        require(candidateExists, "Candidate is not registered");
+
+        votesReceived[_candidate] += 1;
+        totalVotes += 1;
+        hasVoted[msg.sender] = true;
+        castedVote = true;
+        emit VoteCasted(msg.sender, _candidate, 1);
+    }
+
+    function declareWinner() internal {
+        uint256 highestVotes = 0;
+        address currentWinner;
+
+        for (uint256 i = 0; i < candidates.length; i++) {
+            if (votesReceived[candidates[i]] > highestVotes) {
+                highestVotes = votesReceived[candidates[i]];
+                currentWinner = candidates[i];
+            }
+        }
+
+        winner = currentWinner;
+        emit WinnerDeclared(winner, highestVotes);
+
+        // Declare losers
+        for (uint256 i = 0; i < candidates.length; i++) {
+            if (candidates[i] != winner) {
+                losers.push(candidates[i]);
+            }
+        }
+        emit LosersDeclared(losers);
+    }
 }

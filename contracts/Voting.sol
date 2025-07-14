@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 contract Voting{
     address payable public owner;
-    address payable public voter;
     address[] public candidates;
     address[] public voters;
     uint256 public votingEndTime;
@@ -15,13 +14,11 @@ contract Voting{
     bytes32 public votingDescription;
     bool public votingOpen;
     bool public votingClosed;
-    bool public castedVote;
     mapping(address => uint256) public votesReceived;
     uint256 public totalVotes;
-    mapping(address => bool) public hasVoted;
+    mapping(address => uint256) public votesCast;
     address public winner;
     address[] public losers;
-    uint256 balance;
     uint256 private constant MAX_CANDIDATES = 10;
     constructor(string memory _title, bytes32 _description) {
         owner = payable(msg.sender);
@@ -61,12 +58,6 @@ contract Voting{
     }
 
 
-    modifier onlyVoter() {
-        require(msg.sender == voter, "only voter can perform this action");
-        _;
-    }
-
-
     modifier votingIsOpen() {
         require(votingOpen, "Voting is not open");
         _;
@@ -84,7 +75,6 @@ contract Voting{
         require(candidates.length < MAX_CANDIDATES, "Maximum number of canddates reached, sorrry we cant accept more candidates, you can remove a candidate to add a new one");
         require(_candidateAddress != address(0), "Invalid candidate address");
         require(votingClosed, "Voting must be closed to register candidates");
-        require(_candidateAddress.balance >= 4 ether, "candidate has to have a minimum of 4 ETH to be registered as a candidate");
 
         for (uint256 i = 0; i < candidates.length; i++) {
             if (candidates[i] == _candidateAddress) {
@@ -104,15 +94,12 @@ contract Voting{
 
     function buyVotingRight(address _voterAddress) public payable {
         require(msg.sender == _voterAddress, "Only the voter can buy voting rights");
-        require(msg.sender.balance >= 4 ether, "Voter must have at least 4 ETH to buy voting rights");
         require(!votingOpen, "Voting is already open");
-        require(!hasVoted[_voterAddress], "Voter has already voted");
         require(votingClosed, "Voting must be closed to buy voting rights");
         require(msg.value >= 4 ether, "Insufficient funds to buy voting rights");
 
         // The contract receives the payment, so no need to transfer back to voter
         voters.push(_voterAddress);
-        hasVoted[_voterAddress] = false;
         emit hasRightsToVote(_voterAddress, true);
     }
 
@@ -136,7 +123,7 @@ contract Voting{
 
     function castVote(address payable _candidate) public payable votingIsOpen() {
         require(_candidate != address(0), "Invalid candidate address");
-        require(!hasVoted[msg.sender], "You have already voted");
+        require(votesCast[msg.sender] < 2, "You have already voted twice");
         require(msg.value > 0, "Must send payment to vote");
         require(block.timestamp < votingEndTime, "Voting period has ended");
         
@@ -162,8 +149,7 @@ contract Voting{
 
         votesReceived[_candidate] += 1;
         totalVotes += 1;
-        hasVoted[msg.sender] = true;
-        castedVote = true;
+        votesCast[msg.sender] += 1;
         emit VoteCasted(msg.sender, _candidate, 1);
     }
 

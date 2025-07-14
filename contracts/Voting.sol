@@ -23,7 +23,6 @@ contract Voting{
     address[] public losers;
     uint256 balance;
     uint256 private constant MAX_CANDIDATES = 10;
-
     constructor(string memory _title, bytes32 _description) {
         owner = payable(msg.sender);
         votingTitle = _title;
